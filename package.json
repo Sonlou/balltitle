@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@types/howler": "^2.2.12",
+    "@types/three": "^0.178.0",
+    "howler": "^2.2.4",
+    "three": "^0.178.0"
+  }
+}
