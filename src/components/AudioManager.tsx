@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import { Howl } from 'howler';
 
 interface AudioManagerProps {
   gameState: 'menu' | 'playing' | 'gameOver';
@@ -7,52 +6,82 @@ interface AudioManagerProps {
 }
 
 const AudioManager: React.FC<AudioManagerProps> = ({ gameState, volume }) => {
-  const musicRef = useRef<Howl>();
-  const menuMusicRef = useRef<Howl>();
+  const audioContextRef = useRef<AudioContext>();
+  const beatIntervalRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    // Create a simple electronic beat using Web Audio API
-    const createBeepSound = (frequency: number, duration: number, volume: number = 0.3) => {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.value = frequency;
-      oscillator.type = 'square';
-      
-      gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + duration);
-    };
-
-    // Create rhythmic background music
-    const createRhythmicMusic = () => {
-      const playBeat = () => {
-        if (gameState === 'playing') {
-          createBeepSound(220, 0.1, volume * 0.3); // Bass
-          setTimeout(() => createBeepSound(440, 0.05, volume * 0.2), 250); // Hi-hat
-          setTimeout(() => createBeepSound(330, 0.1, volume * 0.25), 500); // Snare
-          setTimeout(() => createBeepSound(440, 0.05, volume * 0.2), 750); // Hi-hat
-        }
-      };
-
-      const beatInterval = setInterval(playBeat, 1000);
-      return () => clearInterval(beatInterval);
-    };
-
-    let cleanupMusic: (() => void) | undefined;
-
-    if (gameState === 'playing') {
-      cleanupMusic = createRhythmicMusic();
+    // Initialize Web Audio API
+    try {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch (error) {
+      console.log('Web Audio API not supported');
+      return;
     }
 
     return () => {
-      if (cleanupMusic) cleanupMusic();
+      if (beatIntervalRef.current) {
+        clearInterval(beatIntervalRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!audioContextRef.current) return;
+
+    const createBeat = (frequency: number, duration: number, delay: number = 0) => {
+      setTimeout(() => {
+        if (!audioContextRef.current || volume === 0) return;
+        
+        try {
+          const oscillator = audioContextRef.current.createOscillator();
+          const gainNode = audioContextRef.current.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContextRef.current.destination);
+          
+          oscillator.frequency.value = frequency;
+          oscillator.type = 'square';
+          
+          const currentTime = audioContextRef.current.currentTime;
+          gainNode.gain.setValueAtTime(volume * 0.1, currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + duration);
+          
+          oscillator.start(currentTime);
+          oscillator.stop(currentTime + duration);
+        } catch (error) {
+          // Ignore audio errors
+        }
+      }, delay);
+    };
+
+    const playBeatPattern = () => {
+      if (gameState === 'playing') {
+        // Create a simple electronic beat pattern
+        createBeat(80, 0.1, 0);     // Kick
+        createBeat(200, 0.05, 250); // Hi-hat
+        createBeat(120, 0.1, 500);  // Snare
+        createBeat(200, 0.05, 750); // Hi-hat
+      }
+    };
+
+    if (gameState === 'playing') {
+      // Start the beat pattern
+      playBeatPattern();
+      beatIntervalRef.current = setInterval(playBeatPattern, 1000);
+    } else {
+      // Stop the beat pattern
+      if (beatIntervalRef.current) {
+        clearInterval(beatIntervalRef.current);
+      }
+    }
+
+    return () => {
+      if (beatIntervalRef.current) {
+        clearInterval(beatIntervalRef.current);
+      }
     };
   }, [gameState, volume]);
 

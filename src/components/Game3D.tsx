@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { Howl } from 'howler';
 
@@ -53,31 +53,40 @@ const Game3D: React.FC<Game3DProps> = ({ gameState, onGameOver, onScoreUpdate })
   const colors = [0xff6b9d, 0x00d4ff, 0x39ff14, 0xffd700, 0xff4757, 0x9c88ff];
 
   const initializeAudio = () => {
-    // Background music with a danceable beat
-    musicRef.current = new Howl({
-      src: ['data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT'],
-      autoplay: false,
-      loop: true,
-      volume: 0.3,
-      onplay: () => {
-        console.log('Music started');
+    // Create simple electronic beats using Web Audio API
+    const createBeepSound = (frequency: number, duration: number, volume: number = 0.3) => {
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = 'square';
+        
+        gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration);
+      } catch (error) {
+        console.log('Audio not available');
       }
-    });
+    };
 
-    // Sound effects
+    // Sound effects using simple beeps
     soundEffectsRef.current = {
-      collect: new Howl({
-        src: ['data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT'],
-        volume: 0.5
-      }),
-      jump: new Howl({
-        src: ['data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT'],
-        volume: 0.4
-      }),
-      crash: new Howl({
-        src: ['data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT'],
-        volume: 0.6
-      })
+      collect: {
+        play: () => createBeepSound(800, 0.1, 0.3)
+      } as any,
+      jump: {
+        play: () => createBeepSound(400, 0.15, 0.2)
+      } as any,
+      crash: {
+        play: () => createBeepSound(150, 0.3, 0.4)
+      } as any
     };
   };
 
@@ -480,11 +489,9 @@ const Game3D: React.FC<Game3DProps> = ({ gameState, onGameOver, onScoreUpdate })
 
   useEffect(() => {
     if (gameState === 'playing') {
-      musicRef.current?.play();
       gameDataRef.current.score = 0;
       gameLoopRef.current = requestAnimationFrame(gameLoop);
     } else {
-      musicRef.current?.pause();
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
       }
